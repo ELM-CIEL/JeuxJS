@@ -4,6 +4,28 @@
 var express = require("express");
 var exp = express();
 
+
+/* *************** serveur WebSocket express ********************* */
+var expressWs = require('express-ws')(exp);
+
+exp.ws('/echo', function (ws, req) {
+    console.log('Connection WebSocket %s sur le port %s',
+        req.connection.remoteAddress, req.connection.remotePort);
+
+    ws.on('message', function (message) {
+        console.log('De %s %s, message :%s',
+            req.connection.remoteAddress, req.connection.remotePort, message);
+        ws.send(message); // renvoie le message au client
+    });
+
+    ws.on('close', function (reasonCode, description) {
+        console.log('Deconnexion WebSocket %s sur le port %s',
+            req.connection.remoteAddress, req.connection.remotePort);
+    });
+});
+
+
+
 // Définir le dossier racine pour les fichiers statiques
 exp.use(express.static(__dirname + "/www"));
 
@@ -20,6 +42,7 @@ exp.use(function (err, req, res, next) {
 });
 
 // Mise en écoute du serveur sur le port 80
-exp.listen(80, function () {
-    console.log("Serveur en ecoute");
+var portServ = 80;
+exp.listen(portServ, function () {
+    console.log('Serveur en ecoute');
 });
