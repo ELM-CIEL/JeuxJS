@@ -5,6 +5,51 @@ const exp = express();
 const expressWs = require("express-ws")(exp);
 const WebSocket = require("ws");
 
+class CQr {
+    constructor(aWss) {
+        this.aWss = aWss;
+        this.question = "?";
+        this.bonneReponse = 0;
+        this.joueurs = new Set();
+    }
+
+    GetRandomInt(max) {
+        return Math.floor(Math.random() * max);
+    }
+
+    NouvelleQuestion() {
+        // Version binaire 
+        const n = this.GetRandomInt(256);
+        const b = n.toString(2).padStart(8, "0");
+        this.question = `Convertir ${b} (base 2) en base 10 : ?`;
+        this.bonneReponse = n;
+
+        this.aWss.broadcast(this.question); // diffusion à tous
+    }
+
+    TraiterReponse(wsClient, message) {
+        const ok = parseInt(message, 10) === this.bonneReponse;
+        if (ok) {
+            this.EnvoyerResultatDiff(wsClient, "Bonne réponse !");
+            this.NouvelleQuestion(); // nouvelle question à tout client
+        } else {
+            this.EnvoyerResultatDiff(wsClient, "Mauvaise réponse !");
+            setTimeout(() => {
+                if (wsClient.readyState === WebSocket.OPEN)
+                    wsClient.send(this.question);
+            }, 3000);
+        }
+    }
+
+    EnvoyerResultatDiff(wsClient, texte) {
+        if (wsClient.readyState === WebSocket.OPEN) wsClient.send(texte);
+    }
+
+    Deconnecter(wsClient) {
+        this.joueurs.delete(wsClient);
+    }
+}
+
 /* *************** Serveur Web classique ********************* */
 exp.use(express.static(__dirname + "/www"));
 
@@ -48,80 +93,38 @@ exp.ws("/echo", function (ws, req) {
 });
 
 /* *************** WebSocket /qr ********************* */
-let question = "?";
-let bonneReponse = 0;
 
-// WSS pour /qr
+// WSS -> /qr + helper broadcast
 const aWssQr = expressWs.getWss("/qr");
 aWssQr.broadcast = function (data) {
-    aWssQr.clients.forEach((client) => {
-        if (client.readyState === WebSocket.OPEN) client.send(data);
+    aWssQr.clients.forEach((c) => {
+        if (c.readyState === WebSocket.OPEN) c.send(data);
     });
 };
 
+const jeuxQr = new CQr(aWssQr);
+
+/* *************** serveur WebSocket express /qr ********************* */
 exp.ws("/qr", function (ws, req) {
     console.log(
-        "Connection WebSocket %s sur le port %s",
+        "Connection WebSocket %s:%s",
         req.connection.remoteAddress,
         req.connection.remotePort
     );
+    jeuxQr.joueurs.add(ws);
+    jeuxQr.NouvelleQuestion();
 
-    // Broadcast -> client
-    NouvelleQuestion();
-
-    ws.on("message", TraiterReponse);
+    // wrapper intermédiaire
+    ws.on("message", function TMessage(message) {
+        jeuxQr.TraiterReponse(ws, message);
+    });
 
     ws.on("close", function () {
+        jeuxQr.Deconnecter(ws);
         console.log(
-            "Déconnexion WebSocket %s sur le port %s",
+            "Deconnexion WebSocket %s:%s",
             req.connection.remoteAddress,
             req.connection.remotePort
         );
     });
-
-    function TraiterReponse(message) {
-        console.log(
-            "De %s %s, message : %s",
-            req.connection.remoteAddress,
-            req.connection.remotePort,
-            message
-        );
-
-        const estBonne = parseInt(message, 10) === bonneReponse;
-
-        if (estBonne) {
-            // Feedback que client -> repond
-            ws.send("Bonne réponse !");
-            // new question = all
-            NouvelleQuestion();
-        } else {
-            // Feedback que client -> repond
-            ws.send("Mauvaise réponse !");
-            // ré-afficher la question 3s après
-            setTimeout(() => {
-                if (ws.readyState === WebSocket.OPEN) ws.send(question);
-            }, 3000);
-        }
-    }
-
-    function NouvelleQuestion() {
-        if (Math.random() < 0.5) {
-            const x = GetRandomInt(11);
-            const y = GetRandomInt(11);
-            question = `${x} * ${y} = ?`;
-            bonneReponse = x * y;
-        } else {
-            // Question conversion binaire
-            const n = GetRandomInt(256);
-            const binaire = n.toString(2).padStart(8, "0");
-            question = `Convertir ${binaire} (base 2) en base 10 : ?`;
-            bonneReponse = n;
-        }
-        aWssQr.broadcast(question);
-    }
-
-
-    function GetRandomInt(max) {
-        return Math.floor(Math.random() * max);
-    }
 });
