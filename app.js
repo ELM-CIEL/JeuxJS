@@ -92,7 +92,7 @@ exp.ws("/qr", function (ws, req) {
         if (estBonne) {
             // Feedback que client -> repond
             ws.send("Bonne réponse !");
-            // new question = all 
+            // new question = all
             NouvelleQuestion();
         } else {
             // Feedback que client -> repond
