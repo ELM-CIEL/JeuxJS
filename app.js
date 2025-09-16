@@ -1,57 +1,16 @@
-/* *********************** Serveur Web *************************** */
-'use strict';
+"use strict";
 
-var express = require('express');
-var exp = express();
-var WebSocket = require('ws');
-
-/* *************** serveur WebSocket express ********************* */
-var expressWs = require('express-ws')(exp);
-var aWss = expressWs.getWss('/echo');
-
-/* *************** Broadcast Clients WebSocket ********************* */
-aWss.broadcast = function broadcast(data) {
-    console.log("Broadcast aux clients navigateur : %s", data);
-    aWss.clients.forEach(function each(client) {
-        if (client.readyState == WebSocket.OPEN) {
-            client.send(data, function ack(error) {
-                console.log(" - %s-%s", client._socket.remoteAddress, client._socket.remotePort);
-                if (error) {
-                    console.log('ERREUR websocket broadcast : %s', error.toString());
-                }
-            });
-        }
-    });
-};
-
-/* *************** WebSocket /echo ********************* */
-exp.ws('/echo', function (ws, req) {
-    console.log('Connection WebSocket %s sur le port %s',
-        req.connection.remoteAddress, req.connection.remotePort);
-
-    ws.on('message', function (message) {
-        console.log('De %s %s, message :%s',
-            req.connection.remoteAddress, req.connection.remotePort, message);
-
-        // Ajout de l’adresse IP et port au message
-        message = ws._socket._peername.address + ws._socket._peername.port + ' : ' + message;
-
-        // Diffusion à tous les clients
-        aWss.broadcast(message);
-    });
-
-    ws.on('close', function (reasonCode, description) {
-        console.log('Déconnexion WebSocket %s sur le port %s',
-            req.connection.remoteAddress, req.connection.remotePort);
-    });
-});
+const express = require("express");
+const exp = express();
+const expressWs = require("express-ws")(exp);
+const WebSocket = require("ws");
 
 /* *************** Serveur Web classique ********************* */
 exp.use(express.static(__dirname + "/www"));
 
 exp.get("/", function (req, res) {
-    console.log("Réponse à un client");
-    res.sendFile(__dirname + "/www/textchat.html"); // nom modifié
+    console.log("RÃ©ponse Ã  un client");
+    res.sendFile(__dirname + "/www/textchat.html");
 });
 
 exp.use(function (err, req, res, next) {
@@ -59,7 +18,101 @@ exp.use(function (err, req, res, next) {
     res.status(500).send("Erreur serveur express");
 });
 
-var portServ = 80;
+const portServ = 80;
 exp.listen(portServ, function () {
-    console.log('Serveur en écoute');
+    console.log("Serveur en Ã©coute");
+});
+
+/* *************** WebSocket /echo ********************* */
+
+const aWssEcho = expressWs.getWss("/echo");
+aWssEcho.broadcast = function (data) {
+    aWssEcho.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) client.send(data);
+    });
+};
+exp.ws("/echo", function (ws, req) {
+    console.log(
+        "Connection /echo",
+        req.connection.remoteAddress,
+        req.connection.remotePort
+    );
+    ws.on("message", function (message) {
+        message =
+            ws._socket._peername.address +
+            ws._socket._peername.port +
+            " : " +
+            message;
+        aWssEcho.broadcast(message);
+    });
+});
+
+/* *************** WebSocket /qr ********************* */
+let question = "?";
+let bonneReponse = 0;
+
+// WSS pour /qr
+const aWssQr = expressWs.getWss("/qr");
+aWssQr.broadcast = function (data) {
+    aWssQr.clients.forEach((client) => {
+        if (client.readyState === WebSocket.OPEN) client.send(data);
+    });
+};
+
+exp.ws("/qr", function (ws, req) {
+    console.log(
+        "Connection WebSocket %s sur le port %s",
+        req.connection.remoteAddress,
+        req.connection.remotePort
+    );
+
+    // Broadcast -> client
+    NouvelleQuestion();
+
+    ws.on("message", TraiterReponse);
+
+    ws.on("close", function () {
+        console.log(
+            "DÃ©connexion WebSocket %s sur le port %s",
+            req.connection.remoteAddress,
+            req.connection.remotePort
+        );
+    });
+
+    function TraiterReponse(message) {
+        console.log(
+            "De %s %s, message : %s",
+            req.connection.remoteAddress,
+            req.connection.remotePort,
+            message
+        );
+
+        const estBonne = parseInt(message, 10) === bonneReponse;
+
+        if (estBonne) {
+            // Feedback que client -> repond
+            ws.send("Bonne rÃ©ponse !");
+            // new question = all 
+            NouvelleQuestion();
+        } else {
+            // Feedback que client -> repond
+            ws.send("Mauvaise rÃ©ponse !");
+            // rÃ©-afficher la question 3s aprÃ¨s
+            setTimeout(() => {
+                if (ws.readyState === WebSocket.OPEN) ws.send(question);
+            }, 3000);
+        }
+    }
+
+    function NouvelleQuestion() {
+        const x = GetRandomInt(11);
+        const y = GetRandomInt(11);
+        question = `${x} * ${y} = ?`;
+        bonneReponse = x * y;
+        aWssQr.broadcast(question); // envoie question Ã  tous clients
+    }
+
+    function GetRandomInt(max) {
+        return Math.floor(Math.random() * max);
+    }
 });

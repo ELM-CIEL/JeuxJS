@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <title>Jeux Question / Réponse</title>
+    <script src="./qr.js" defer></script>
+    <style>
+        body {
+            font-family: system-ui,Arial,sans-serif;
+            max-width: 640px;
+            margin: 2rem auto;
+            padding: 0 1rem
+        }
+
+        label {
+            display: inline-block;
+            min-width: 140px
+        }
+
+        input[type="text"] {
+            width: 100%;
+            max-width: 360px
+        }
+    </style>
+</head>
+<body>
+    <h1>Bienvenue au jeu de Questions/Réponses</h1>
+
+    <div>
+        <label>Question :</label>
+        <input type="text" id="question" readonly>
+    </div>
+
+    <div>
+        <label>Votre réponse :</label>
+        <input type="text" id="reponse" autocomplete="off">
+        <button id="valider">Valider</button>
+    </div>
+
+    <div>
+        <label>Résultat :</label>
+        <input type="text" id="resultat" readonly>
+    </div>
+</body>
+</html>
