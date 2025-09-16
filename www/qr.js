@@ -27,18 +27,15 @@ function ConnexionAuServeurWebsocket() {
 
     ws.onmessage = function (evt) {
         const txt = String(evt.data);
+        const q = document.getElementById("question");
+        const r = document.getElementById("resultat");
 
-        if (txt.includes("=")) {
-            document.getElementById("question").value = txt;
-            document.getElementById("resultat").value = ""; // clear feedback
+        // c'est feedback connu -> resultat, sinon -> Question
+        if (txt === "Bonne réponse !" || txt === "Mauvaise réponse !") {
+            r.value = txt;
         } else {
-            // Sinon c'est feedback bonne/mauvaise reponse
-            const res = document.getElementById("resultat");
-            const old = res.value;
-            res.value = txt;
-            // On n'efface rien côté client au bout de 3s :
-            // - si mauvaise, serveur renverra la question à CE client après 3s
-            // - si bonne, serveur broadcast envoie new question
+            q.value = txt; // affiche la question (multiplication OU binaire)
+            r.value = ""; // nettoie l'ancien feedback
         }
     };
 

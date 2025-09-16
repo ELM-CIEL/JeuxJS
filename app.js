@@ -105,12 +105,21 @@ exp.ws("/qr", function (ws, req) {
     }
 
     function NouvelleQuestion() {
-        const x = GetRandomInt(11);
-        const y = GetRandomInt(11);
-        question = `${x} * ${y} = ?`;
-        bonneReponse = x * y;
-        aWssQr.broadcast(question); // envoie question à tous clients
+        if (Math.random() < 0.5) {
+            const x = GetRandomInt(11);
+            const y = GetRandomInt(11);
+            question = `${x} * ${y} = ?`;
+            bonneReponse = x * y;
+        } else {
+            // Question conversion binaire
+            const n = GetRandomInt(256);
+            const binaire = n.toString(2).padStart(8, "0");
+            question = `Convertir ${binaire} (base 2) en base 10 : ?`;
+            bonneReponse = n;
+        }
+        aWssQr.broadcast(question);
     }
+
 
     function GetRandomInt(max) {
         return Math.floor(Math.random() * max);
