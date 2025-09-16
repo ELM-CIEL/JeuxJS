@@ -18,7 +18,7 @@ class CQr {
     }
 
     NouvelleQuestion() {
-        // Version binaire 
+        // Version binaire
         const n = this.GetRandomInt(256);
         const b = n.toString(2).padStart(8, "0");
         this.question = `Convertir ${b} (base 2) en base 10 : ?`;
@@ -28,12 +28,22 @@ class CQr {
     }
 
     TraiterReponse(wsClient, message) {
-        const ok = parseInt(message, 10) === this.bonneReponse;
-        if (ok) {
+        let mess;
+        try {
+            mess = JSON.parse(message); // ← parse JSON
+        } catch (e) {
+            console.log("Message non JSON :", message); // test demandé
+            return;
+        }
+
+        const joueur = mess.nom || "inconnu";
+        const reponse = parseInt(mess.reponse, 10);
+
+        if (reponse === this.bonneReponse) {
             this.EnvoyerResultatDiff(wsClient, "Bonne réponse !");
-            this.NouvelleQuestion(); // nouvelle question à tout client
+            this.NouvelleQuestion();
         } else {
-            this.EnvoyerResultatDiff(wsClient, "Mauvaise réponse !");
+            this.EnvoyerResultatDiff(wsClient, `Mauvaise réponse ${joueur} !`);
             setTimeout(() => {
                 if (wsClient.readyState === WebSocket.OPEN)
                     wsClient.send(this.question);

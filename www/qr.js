@@ -30,17 +30,12 @@ function ConnexionAuServeurWebsocket() {
         const q = document.getElementById("question");
         const r = document.getElementById("resultat");
 
-        // c'est feedback connu -> resultat, sinon -> Question
         if (txt === "Bonne réponse !" || txt === "Mauvaise réponse !") {
             r.value = txt;
         } else {
-            q.value = txt; // affiche la question (multiplication OU binaire)
-            r.value = ""; // nettoie l'ancien feedback
+            q.value = txt;
+            r.value = "";
         }
-    };
-
-    ws.onclose = function () {
-        window.alert("WebSocket close");
     };
 }
 
@@ -53,10 +48,23 @@ function ControleIHM() {
     });
 }
 
+/* format brut
 function BPEnvoyer() {
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     const val = document.getElementById("reponse").value.trim();
     if (!val) return;
     ws.send(val);
+    document.getElementById("reponse").value = "";
+}
+*/
+
+// format json
+function BPEnvoyer() {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const nom = document.getElementById("nom").value.trim();
+    const rep = document.getElementById("reponse").value.trim();
+    if (!rep) return;
+
+    ws.send(JSON.stringify({ nom: nom || "inconnu", reponse: rep }));
     document.getElementById("reponse").value = "";
 }
